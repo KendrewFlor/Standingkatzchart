@@ -1,0 +1,41 @@
+# Build output
+_site/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node (the project has no dependencies; these should never appear)
+node_modules/
+package-lock.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Secrets: never commit
+.env
+.env.*
+*.pem
+*.key
+
+# Local AI-assistant state and config.
+# These files are read automatically by coding agents. Keeping them out of the
+# public repo means nobody who clones it inherits instructions they didn't write.
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.mcp.json
+.claude/
+.wolf/
+.cursor/
+.cursorrules
+.codex/
+.continue/
+.windsurfrules
+.clinerules

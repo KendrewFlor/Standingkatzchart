@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: read-only token, nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Every action is pinned to a full commit SHA (the tag is in the comment for humans and Dependabot).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # full history so the scanner can check commit trailers
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Security scan (hidden Unicode, prompt injection, secrets, CSP, supply chain)
+        run: python3 tools/security_scan.py
+
+      - name: Python reference implementation and tests
+        run: |
+          python3 python/zfactor.py --check
+          python3 -m unittest discover -s tests/python -v
+
+      - name: Browser code matches the Python reference
+        run: node --test tests/js/zmath.test.mjs

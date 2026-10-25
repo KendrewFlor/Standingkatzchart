@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Interactive Standing–Katz Z-factor chart for natural gas: read Z at any point, apply sour-gas corrections, and get Bg, density, cg and viscosity with every step shown.">
+<meta name="color-scheme" content="light dark">
+<title>Standing–Katz Z-Factor Chart</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1><small>Natural gas compressibility</small>Standing–Katz Z-Factor Chart</h1>
+    <p>The Standing–Katz chart reproduced with the Dranchuk–Abou-Kassem equation of state. Hover the chart to read any point, click to pin it, and get Z, density, B<sub>g</sub>, c<sub>g</sub> and μ<sub>g</sub> at your own reservoir conditions with every step of the calculation shown.</p>
+  </header>
+
+  <div class="bench">
+    <!-- Inputs -->
+    <section class="panel stack" aria-label="Inputs">
+      <fieldset>
+        <legend>Input mode</legend>
+        <div class="seg" role="group" aria-label="Input mode">
+          <button type="button" id="modeGas" aria-pressed="true">Gas &amp; conditions</button>
+          <button type="button" id="modeDirect" aria-pressed="false">Ppr &amp; Tpr</button>
+        </div>
+      </fieldset>
+
+      <div id="gasInputs" class="stack">
+        <fieldset>
+          <legend>Units</legend>
+          <div class="seg" role="group" aria-label="Units">
+            <button type="button" id="unitField" aria-pressed="true">Field (psia, °F)</button>
+            <button type="button" id="unitSI" aria-pressed="false">SI (kPa, °C)</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Conditions</legend>
+          <div class="row"><label for="inP">Pressure <span id="uP">psia</span></label><input type="number" id="inP" step="any" min="1"></div>
+          <input type="range" id="rgP" min="15" max="15000" step="5" aria-label="Pressure slider">
+          <div class="row"><label for="inT">Temperature <span id="uT">°F</span></label><input type="number" id="inT" step="any"></div>
+          <input type="range" id="rgT" min="40" max="400" step="1" aria-label="Temperature slider">
+        </fieldset>
+        <fieldset>
+          <legend>Gas</legend>
+          <div class="row"><label for="inG">Specific gravity γ<sub>g</sub> <span>(air = 1)</span></label><input type="number" id="inG" step="0.005" min="0.55" max="2"></div>
+          <input type="range" id="rgG" min="0.55" max="1.6" step="0.005" aria-label="Gas gravity slider">
+          <div class="row single"><label for="inCorr">Pseudo-critical correlation</label></div>
+          <select id="inCorr">
+            <option value="sutton">Sutton (1985)</option>
+            <option value="standingNG">Standing (1977), natural gas</option>
+            <option value="standingCond">Standing (1977), gas condensate</option>
+          </select>
+          <div class="sub">
+            <p class="hint">Non-hydrocarbons, mol %. Corrected with Kay's rule and Wichert–Aziz.</p>
+            <div class="row"><label for="inCO2">CO₂</label><input type="number" id="inCO2" step="0.1" min="0" max="80"></div>
+            <div class="row"><label for="inH2S">H₂S</label><input type="number" id="inH2S" step="0.1" min="0" max="80"></div>
+            <div class="row"><label for="inN2">N₂</label><input type="number" id="inN2" step="0.1" min="0" max="80"></div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div id="directInputs" class="stack" hidden>
+        <fieldset>
+          <legend>Reduced conditions</legend>
+          <div class="row"><label for="inPpr">P<sub>pr</sub></label><input type="number" id="inPpr" step="0.01" min="0" max="30"></div>
+          <input type="range" id="rgPpr" min="0" max="15" step="0.01" aria-label="Ppr slider">
+          <div class="row"><label for="inTpr">T<sub>pr</sub></label><input type="number" id="inTpr" step="0.01" min="1" max="3"></div>
+          <input type="range" id="rgTpr" min="1.05" max="3" step="0.01" aria-label="Tpr slider">
+          <p class="hint">Read Z straight off the chart. Gas properties need the gas and conditions mode.</p>
+        </fieldset>
+      </div>
+
+      <fieldset>
+        <legend>Z-factor method</legend>
+        <select id="inMethod">
+          <option value="dak">Dranchuk–Abou-Kassem (recommended)</option>
+          <option value="hy">Hall–Yarborough</option>
+          <option value="bb">Brill–Beggs</option>
+          <option value="papay">Papay (explicit)</option>
+        </select>
+        <p class="hint" id="methodNote"></p>
+      </fieldset>
+      <button type="button" class="btn" id="btnReset">Reset to the example</button>
+    </section>
+
+    <!-- Chart -->
+    <section class="panel chartcard" aria-label="Chart">
+      <div class="charttools">
+        <div>
+          <span class="lbl">Range</span>
+          <span class="seg" role="group" aria-label="Chart range">
+            <button type="button" data-range="low" aria-pressed="true">Ppr 0–8</button>
+            <button type="button" data-range="high" aria-pressed="false">Ppr 7–15</button>
+            <button type="button" data-range="full" aria-pressed="false">0–15</button>
+            <button type="button" data-range="ext" aria-pressed="false">0–30</button>
+          </span>
+        </div>
+        <label class="check"><input type="checkbox" id="cbCompare"> Overlay the selected method on DAK</label>
+      </div>
+      <div class="plot" id="plot">
+        <canvas id="cv" role="img" aria-label="Standing–Katz Z-factor chart: Z against pseudo-reduced pressure for pseudo-reduced temperatures from 1.05 to 3.0"></canvas>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+      <p class="chartnote">Hover to read Z and the T<sub>pr</sub> that passes through that point. Click (or tap) to pin a reading. The highlighted isotherm and dot are your operating point.</p>
+    </section>
+
+    <!-- Readout -->
+    <section class="panel stack readout" aria-label="Results">
+      <div>
+        <h2>Operating point</h2>
+        <div class="zbig"><span class="k">Z =</span><span class="v" id="outZ">—</span></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <dl class="kv" id="outKV"></dl>
+      <div>
+        <h2>Pinned readings</h2>
+        <div class="pins" id="pins"></div>
+        <p class="hint" id="pinsEmpty">Click anywhere on the chart to pin a reading.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="lower">
+    <section class="panel" aria-label="Worked solution">
+      <h2>Worked solution</h2>
+      <div class="steps" id="steps"></div>
+    </section>
+    <div class="stack">
+      <section class="panel" aria-label="Correlation comparison">
+        <div class="tablehead"><h2>Correlation check at this point</h2></div>
+        <div class="tablewrap"><table id="cmp"></table></div>
+        <p class="hint spaced">Ranges are the ones usually quoted for each method. DAK and Hall–Yarborough both reproduce the chart closely; the explicit ones drift outside their range.</p>
+      </section>
+      <section class="panel" aria-label="Isotherm table">
+        <div class="tablehead"><h2 id="isoTitle">Isotherm table</h2><span><span class="toast" id="copyMsg" hidden>Copied</span> <button type="button" class="btn" id="btnCopy">Copy as CSV</button></span></div>
+        <div class="tablewrap tall"><table id="iso"></table></div>
+        <textarea id="csvFallback" hidden aria-label="CSV text"></textarea>
+      </section>
+      <section class="panel" aria-label="References">
+        <h2>Sources</h2>
+        <ol class="refs">
+          <li>Standing, M.B. &amp; Katz, D.L. (1942). Density of natural gases. <i>Trans. AIME</i> 146, 140–149.</li>
+          <li>Dranchuk, P.M. &amp; Abou-Kassem, J.H. (1975). Calculation of Z factors for natural gases using equations of state. <i>J. Can. Pet. Tech.</i> 14(3).</li>
+          <li>Hall, K.R. &amp; Yarborough, L. (1973). A new equation of state for Z-factor calculations. <i>Oil &amp; Gas J.</i></li>
+          <li>Brill, J.P. &amp; Beggs, H.D. (1974). <i>Two-Phase Flow in Pipes</i>. University of Tulsa.</li>
+          <li>Papay, J. (1968). Explicit Z-factor correlation. <i>OGIL Műszaki Tudományos Közlemények</i>, Budapest.</li>
+          <li>Sutton, R.P. (1985). Compressibility factors for high-molecular-weight reservoir gases. <i>SPE 14265</i>.</li>
+          <li>Standing, M.B. (1977). <i>Volumetric and Phase Behavior of Oil Field Hydrocarbon Systems</i>. SPE.</li>
+          <li>Wichert, E. &amp; Aziz, K. (1972). Calculate Z's for sour gases. <i>Hydrocarbon Processing</i> 51(5).</li>
+          <li>Lee, A.L., Gonzalez, M.H. &amp; Eakin, B.E. (1966). The viscosity of natural gases. <i>JPT</i> 18(8).</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+  <footer class="foot">
+    <span>© 2026 Kendrew Flor S. Arrabe · MIT License</span>
+    <span>For study and screening. Check critical numbers against lab PVT data.</span>
+    <a href="https://github.com/KendrewFlor/standing-katz-chart" rel="noopener">Source on GitHub</a>
+  </footer>
+</div>
+<script src="js/zmath.js"></script>
+<script src="js/zgas.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
