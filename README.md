@@ -1,4 +1,4 @@
-# Standing–Katz Z-Factor Chart
+# Standing–Katz Z-Factor Chart (Petroleum Fluid Properties)
 
 An interactive, calculation-backed version of the Standing–Katz natural-gas compressibility chart, for petroleum engineering coursework and quick reservoir-engineering checks.
 
